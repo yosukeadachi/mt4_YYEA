@@ -8,6 +8,8 @@
 #property version   "0.01"
 #property description ""
 
+int period = PERIOD_M5;
+
 //high low pair
 struct HighLowPair {
   double high;
@@ -25,71 +27,33 @@ struct ZZ_result {
     HighLowPair pair;
 };
 
-ZZ_result lastResult;
+struct ZZ_point {
+  int barIds[2];    //バーID
+  double values[2]; //現在=0 一つ前=1
+};
+ZZ_point zzPointLong;
+ZZ_point zzPointShort;
 
 //HighLowLines
 HighLowPair hllResults[4];
 
-// //+------------------------------------------------------------------+
-// //| Calculate open positions                                         |
-// //+------------------------------------------------------------------+
-// int CalculateCurrentOrders(string symbol)
-// {
-//   int buys=0,sells=0;
-// //---
-//   for(int i=0;i<OrdersTotal();i++)
-//     {
-//     if(OrderSelect(i,SELECT_BY_POS,MODE_TRADES)==false) break;
-//     if(OrderSymbol()==Symbol() && OrderMagicNumber()==MAGICMA)
-//       {
-//         if(OrderType()==OP_BUY)  buys++;
-//         if(OrderType()==OP_SELL) sells++;
-//       }
-//     }
-// //--- return orders volume
-//   if(buys>0) return(buys);
-//   else       return(-sells);
-// }
-
-// //+------------------------------------------------------------------+
-// //| Check for open order conditions                                  |
-// //+------------------------------------------------------------------+
-// void CheckForOpen()
-// {
-//   double ma;
-//   int    res;
-// //--- go trading only for first tiks of new bar
-//   if(Volume[0]>1) return;
-// //--- get Moving Average 
-//   ma=iMA(NULL,0,MovingPeriod,MovingShift,MODE_SMA,PRICE_CLOSE,0);
-// //--- sell conditions
-//   if(Open[1]>ma && Close[1]<ma)
-//     {
-//     res=OrderSend(Symbol(),OP_SELL,LotsOptimized(),Bid,3,0,0,"",MAGICMA,0,Red);
-//     return;
-//     }
-// //--- buy conditions
-//   if(Open[1]<ma && Close[1]>ma)
-//     {
-//     res=OrderSend(Symbol(),OP_BUY,LotsOptimized(),Ask,3,0,0,"",MAGICMA,0,Blue);
-//     return;
-//     }
-// //---
-// }
+//Order
+#define MAGICMA 20180826
+int ticket = -1;
+bool isEntry = false;
+double closePrise = 0;
 
 //+------------------------------------------------------------------+
 //| OnTick function                                                  |
 //+------------------------------------------------------------------+
 void OnTick()
 {
-  int _period = PERIOD_M15;
-
   //HighLowLines
   for(int i = 0; i < ArraySize(hllResults); i++) {
-    hllResults[i].high = iCustom(NULL,_period,"HighLowLines",(i*2)+0,0);
-    hllResults[i].low = iCustom(NULL,_period,"HighLowLines",(i*2)+1,0);
+    hllResults[i].high = iCustom(NULL,period,"HighLowLines",(i*2)+0,0);
+    hllResults[i].low = iCustom(NULL,period,"HighLowLines",(i*2)+1,0);
   }
-  // printf("%s highlow:0[H%.2f:L%.2f],1[H%.2f:L%.2f],2[H%.2f:L%.2f],3[H%.2f:L%.2f]", 
+  // printf("%s highlow:0[H%.3f:L%.3f],1[H%.3f:L%.3f],2[H%.3f:L%.3f],3[H%.3f:L%.3f]", 
   //     generateTickTimeStr(),
   //     hllResults[0].high,hllResults[0].low,
   //     hllResults[1].high,hllResults[1].low,
@@ -101,108 +65,174 @@ void OnTick()
   ZZ_param zzpl = { 15, 5, 3};
   ZZ_param zzps = { 5, 5, 3};
   int _mode = 0;
-  int _shift = 0;
 
-  ZZ_result zzResultLong = {0,{0,0}};
-  ZZ_result zzResultShort = {0,{0,0}};
-  ZZ_result zzResultLong_1 = {0,{0,0}};
-  ZZ_result zzResultShort_1 = {0,{0,0}};
-  zzResultLong.last = iCustom(NULL,_period,"ZigZag",zzpl.depth, zzpl.deviation, zzpl.backstep, _mode+0, _shift+0);
-  zzResultLong.pair.high = iCustom(NULL,_period,"ZigZag",zzpl.depth, zzpl.deviation, zzpl.backstep, _mode+1, _shift+0);
-  zzResultLong.pair.low = iCustom(NULL,_period,"ZigZag",zzpl.depth, zzpl.deviation, zzpl.backstep, _mode+2, _shift+0);
-  zzResultShort.last = iCustom(NULL,_period,"ZigZag",zzps.depth, zzps.deviation, zzps.backstep, _mode+0, _shift+0);
-  zzResultShort.pair.high = iCustom(NULL,_period,"ZigZag",zzps.depth, zzps.deviation, zzps.backstep, _mode+1, _shift+0);
-  zzResultShort.pair.low = iCustom(NULL,_period,"ZigZag",zzps.depth, zzps.deviation, zzps.backstep, _mode+2, _shift+0);
-
-  zzResultLong_1.last = iCustom(NULL,_period,"ZigZag",zzpl.depth, zzpl.deviation, zzpl.backstep, _mode+0, _shift+1);
-  zzResultLong_1.pair.high = iCustom(NULL,_period,"ZigZag",zzpl.depth, zzpl.deviation, zzpl.backstep, _mode+1, _shift+1);
-  zzResultLong_1.pair.low = iCustom(NULL,_period,"ZigZag",zzpl.depth, zzpl.deviation, zzpl.backstep, _mode+2, _shift+1);
-  zzResultShort_1.last = iCustom(NULL,_period,"ZigZag",zzps.depth, zzps.deviation, zzps.backstep, _mode+0, _shift+1);
-  zzResultShort_1.pair.high = iCustom(NULL,_period,"ZigZag",zzps.depth, zzps.deviation, zzps.backstep, _mode+1, _shift+1);
-  zzResultShort_1.pair.low = iCustom(NULL,_period,"ZigZag",zzps.depth, zzps.deviation, zzps.backstep, _mode+2, _shift+1);
-
-  //変動があるか？
-  if(zzResultLong.last != 0) {
-    //変動が同じか？
-    if((zzResultLong.last == zzResultShort.last) &&
-        (zzResultLong.pair.high == zzResultShort.pair.high) &&
-        (zzResultLong.pair.low == zzResultShort.pair.low))
-    {
-      printf("%s 0 Long:La[%.2f],Hi[%.2f],Lo[%.2f] Short:La[%.2f],Hi[%.2f],Lo[%.2f]", 
-          generateTickTimeStr(),
-          zzResultLong.last,zzResultLong.pair.high,zzResultLong.pair.low,
-          zzResultShort.last,zzResultShort.pair.high,zzResultShort.pair.low
-      );
-      printf("%s 1 Long:La[%.2f],Hi[%.2f],Lo[%.2f] Short:La[%.2f],Hi[%.2f],Lo[%.2f]", 
-          generateTickTimeStr(),
-          zzResultLong_1.last,zzResultLong_1.pair.high,zzResultLong_1.pair.low,
-          zzResultShort_1.last,zzResultShort_1.pair.high,zzResultShort_1.pair.low
-      );
-
-      double _rangeOffset[] = {-0.1,0.1};
-      //保存と違うか？
-      if((zzResultLong.pair.high != 0 ) && (lastResult.pair.high != zzResultLong.pair.high))
-      {
-        //高値更新
-        lastResult.pair.high = zzResultLong.pair.high;
-        printf("%s update:High[%f]", 
-            generateTickTimeStr(),lastResult.pair.high
-        );
-        // if(isTouch(hllResults, lastResult, _rangeOffset)) {
-        //   printf("touch high %f", lastResult.pair.high);
-        //   Comment(lastResult.pair.high);
-        // }
-      }
-      if((zzResultLong.pair.low != 0 ) && (lastResult.pair.low != zzResultLong.pair.low))
-      {
-        //安値更新
-        lastResult.pair.low = zzResultLong.pair.low;
-        printf("%s update:Low[%f]", 
-            generateTickTimeStr(),lastResult.pair.low
-        );
-        // if(isTouch(hllResults, lastResult, _rangeOffset)) {
-        //   printf("touch low %f", lastResult.pair.low);
-        //   Comment(lastResult.pair.low);
-        // }
+  //転換点を取得
+  int bar = 0;
+  int pointIndex = 0;
+  //Long
+  pointIndex = 0;
+  for(bar = 0; bar < Bars; bar++) {
+    ZZ_result zzResultLong = {0,{0,0}};
+    zzResultLong.last = iCustom(NULL,period,"ZigZag",zzpl.depth, zzpl.deviation, zzpl.backstep, _mode+0, bar);
+    zzResultLong.pair.high = iCustom(NULL,period,"ZigZag",zzpl.depth, zzpl.deviation, zzpl.backstep, _mode+1, bar);
+    zzResultLong.pair.low = iCustom(NULL,period,"ZigZag",zzpl.depth, zzpl.deviation, zzpl.backstep, _mode+2, bar);
+    if(zzResultLong.last != 0) {
+      zzPointLong.values[pointIndex] = zzResultLong.last;
+      zzPointLong.barIds[pointIndex] = bar;
+      pointIndex++;
+      if(pointIndex >= ArraySize(zzPointLong.values)) {
+        break;
       }
     }
   }
+  // printf("Long [0](%d:%f) [1](%d:%f)", 
+  //   zzPointLong.barIds[0], zzPointLong.values[0],
+  //   zzPointLong.barIds[1], zzPointLong.values[1]);
+  //Short
+  pointIndex = 0;
+  for(bar = 0; bar < Bars; bar++) {
+    ZZ_result zzResultShort = {0,{0,0}};
+    zzResultShort.last = iCustom(NULL,period,"ZigZag",zzps.depth, zzps.deviation, zzps.backstep, _mode+0, bar);
+    zzResultShort.pair.high = iCustom(NULL,period,"ZigZag",zzps.depth, zzps.deviation, zzps.backstep, _mode+1, bar);
+    zzResultShort.pair.low = iCustom(NULL,period,"ZigZag",zzps.depth, zzps.deviation, zzps.backstep, _mode+2, bar);
+    if(zzResultShort.last != 0) {
+      zzPointShort.values[pointIndex] = zzResultShort.last;
+      zzPointShort.barIds[pointIndex] = bar;
+      pointIndex++;
+      if(pointIndex >= ArraySize(zzPointShort.values)) {
+        break;
+      }
+    }
+  }
+  // printf("Short [0](%d:%f) [1](%d:%f)", 
+  //   zzPointShort.barIds[0], zzPointShort.values[0],
+  //   zzPointShort.barIds[1], zzPointShort.values[1]);
 
-// //--- check for history and trading
-//   if(Bars<100 || IsTradeAllowed()==false)
-//     return;
+  //エントリーチェック
+  if((zzPointLong.values[0] == zzPointShort.values[0]) &&
+     (zzPointLong.barIds[0] == 1) &&
+     (zzPointShort.barIds[0] == 1))
+  {
+    printf("Long [0](%d:%f) [1](%d:%f)", 
+      zzPointLong.barIds[0], zzPointLong.values[0],
+      zzPointLong.barIds[1], zzPointLong.values[1]);
+    printf("Short [0](%d:%f) [1](%d:%f)", 
+      zzPointShort.barIds[0], zzPointShort.values[0],
+      zzPointShort.barIds[1], zzPointShort.values[1]);
 
-// //--- calculate open orders by current symbol
-//   if(CalculateCurrentOrders(Symbol())==0) CheckForOpen();
-//   else                                    CheckForClose();
-// //---
+    double _rangeOffset[] = {-0.05,0.05};
+    double _target = zzPointLong.values[0];
+    if(isTouch(hllResults, _target, _rangeOffset)) {
+      isEntry = true;
+      printf("touch %f", _target);
+      Comment(_target);
+    }
+  }
+
+  //エントリー処理
+  if(ticket == -1) {
+    //Order Open
+    ticket = CheckSendOrder(zzPointLong);
+    // printf("CheckSendOrder ticket:%d", ticket);
+  } else {
+    //Order Close
+    bool _result = CheckCloseOrder(ticket);
+    if(_result) {
+      ticket = -1;
+    }
+    // printf("CheckCloseOrder _result:%d", _result);
+  }
 }
 //+------------------------------------------------------------------+
 
 //+------------------------------------------------------------------+
+//Order
+//+------------------------------------------------------------------+
+//Check for open order conditions 
+int CheckSendOrder(ZZ_point &aZZPoint)
+{
+  int    res;
+  //--- go trading only for first tiks of new bar
+  if(Volume[0]>1) return -1;
+
+  // エントリーフラグが立っていたら処理する
+  if(!isEntry) return -1;
+  
+//--- sell conditions
+  printf("CheckSendOrder aZZPoint.values:%f,%f",aZZPoint.values[0],aZZPoint.values[1]);
+  if(aZZPoint.values[0] > aZZPoint.values[1])
+  {
+    res=OrderSend(Symbol(),OP_SELL,LotsOptimized(),Bid,3,0,0,"",MAGICMA,0,Red);
+    if(res != -1) {
+      isEntry = false;
+    }
+    return res;
+  }
+//--- buy conditions
+  if(aZZPoint.values[0] < aZZPoint.values[1])
+  {
+    res=OrderSend(Symbol(),OP_BUY,LotsOptimized(),Ask,3,0,0,"",MAGICMA,0,Blue);
+    if(res != -1) {
+      isEntry = false;
+    }
+    return res;
+  }
+  return -1;
+//---
+}
+
+bool CheckCloseOrder(int aTicket) {
+  //--- go trading only for first tiks of new bar
+  if(Volume[0]>1) return false;
+
+  // エントリーフラグが立っていたら処理する
+  if(!isEntry) return false;
+
+  if(!OrderSelect(aTicket,SELECT_BY_TICKET)) {
+    return false;
+  }
+
+  double _lots = OrderLots();
+  printf("CheckCloseOrder ticket:%d lots:%f",aTicket, _lots);
+  bool _closeResult = false;
+  if(OrderType() == OP_BUY) {
+    _closeResult = OrderClose(OrderTicket(),OrderLots(),Bid,3,Green);
+  } else if(OrderType() == OP_SELL) {
+    _closeResult = OrderClose(OrderTicket(),OrderLots(),Ask,3,Green);
+  }
+  if(_closeResult) {
+    isEntry = false;
+  }
+  return _closeResult;
+}
+//最適なロットサイズを計算
+double LotsOptimized()
+{
+  return 0.1;
+}
+
+//+------------------------------------------------------------------+
 //Utility
-bool isTouch(HighLowPair &aHLLResults[], ZZ_result &aZZResult, double &aRangeOffset[]) {
+bool isTouch(HighLowPair &aHLLResults[], double aTarget, double &aRangeOffset[]) {
   bool _isTouch = false;
   
   for(int i = 0; i < ArraySize(aHLLResults); i++) {
     HighLowPair _hll = aHLLResults[i];
     double _range[] = {0,0};
-    double _target = 0;
-    //high
     _range[0] = aRangeOffset[0] + _hll.high;
     _range[1] = aRangeOffset[1] + _hll.high;
-    _target = aZZResult.pair.high;
-    printf("isToush[%d] high %.3f(%f+%f) < %.3f < %.3f(%f+%f)", i, _range[0], aRangeOffset[0], _hll.high, _target, _range[1], aRangeOffset[1], _hll.high);
-    if(_range[0] <= _target && _target <= _range[1]) {
+    printf("isToush[%d] high %.3f(%f+%f) < %.3f < %.3f(%f+%f)", 
+      i, _range[0], aRangeOffset[0], _hll.high, aTarget, _range[1], aRangeOffset[1], _hll.high);
+    if(_range[0] <= aTarget && aTarget <= _range[1]) {
       _isTouch = true;
       break;
     }
     //low
     _range[0] = aRangeOffset[0] + _hll.low;
     _range[1] = aRangeOffset[1] + _hll.low;
-    _target = aZZResult.pair.low;
-    printf("isToush[%d] low %.3f(%f+%f) < %.3f < %.3f(%f+%f)", i, _range[0], aRangeOffset[0], _hll.low, _target, _range[1], aRangeOffset[1], _hll.low);
-    if(_range[0] <= _target && _target <= _range[1]) {
+    printf("isToush[%d] low %.3f(%f+%f) < %.3f < %.3f(%f+%f)", 
+      i, _range[0], aRangeOffset[0], _hll.low, aTarget, _range[1], aRangeOffset[1], _hll.low);
+    if(_range[0] <= aTarget && aTarget <= _range[1]) {
       _isTouch = true;
       break;
     }
