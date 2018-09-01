@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2018, Yosuke Adachi"
 #property link      ""
-#property version   "0.01"
+#property version   "1.00"
 #property description ""
 
 int period = PERIOD_M5;
@@ -37,6 +37,9 @@ ZZ_point zzPointShort;
 //HighLowLines
 HighLowPair hllResults[4];
 
+//UpperLowerShadow
+int UpperLowerShadowMagnification = 3;
+
 //Order
 #define MAGICMA 20180826
 int ticket = -1;
@@ -48,6 +51,9 @@ double closePrise = 0;
 //+------------------------------------------------------------------+
 void OnTick()
 {
+  //--- go calculate only for first tiks of new bar
+  if(Volume[0]>1) return;
+
   //HighLowLines
   for(int i = 0; i < ArraySize(hllResults); i++) {
     hllResults[i].high = iCustom(NULL,period,"HighLowLines",(i*2)+0,0);
@@ -123,9 +129,12 @@ void OnTick()
     double _rangeOffset[] = {-0.05,0.05};
     double _target = zzPointLong.values[0];
     if(isTouch(hllResults, _target, _rangeOffset)) {
-      isEntry = true;
       printf("touch %f", _target);
-      Comment(_target);
+      int shadow = getUpperLowerShadow(1);
+      printf("shadow:%d", shadow);
+      if(shadow != 0) {
+        isEntry = true;
+      }
     }
   }
 
@@ -144,6 +153,33 @@ void OnTick()
   }
 }
 //+------------------------------------------------------------------+
+
+// UpperLowerShadow
+// return 0= どちらでもない, -1=Lower 1=Upper
+int getUpperLowerShadow(int aBar) {
+  if(aBar <= 0) {
+    return 0;
+  }
+
+  //実体の計算
+  double Real_Body = MathAbs(Open[aBar] - Close[aBar]);
+  //上ヒゲの計算
+  double Upper_Shadow = MathMin(High[aBar] - Open[aBar], High[aBar] - Close[aBar]);
+  //下ヒゲの計算
+  double Lower_Shadow = MathMin(Open[aBar] - Low[aBar], Close[aBar] - Low[aBar]);
+  if(Real_Body * UpperLowerShadowMagnification <= Lower_Shadow &&
+  Upper_Shadow * UpperLowerShadowMagnification <= Lower_Shadow) {
+    //  printf("!!!!^%d^!!!!",i);
+    return -1;
+  }
+  if(Real_Body * UpperLowerShadowMagnification <= Upper_Shadow && 
+  Lower_Shadow * UpperLowerShadowMagnification <= Upper_Shadow) {
+    //  printf("!!!!_%d_!!!!",i);
+    return 1;
+  }
+  return 0;
+}
+
 
 //+------------------------------------------------------------------+
 //Order
