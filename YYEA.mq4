@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2018, Yosuke Adachi"
 #property link      ""
-#property version   "1.00"
+#property version   "1.01"
 #property description ""
 
 int period = PERIOD_M5;
@@ -45,6 +45,8 @@ int UpperLowerShadowMagnification = 3;
 int ticket = -1;
 bool isEntry = false;
 double closePrise = 0;
+int closeBarOffset = 1;
+int openedBars = 0;
 
 //+------------------------------------------------------------------+
 //| OnTick function                                                  |
@@ -143,6 +145,9 @@ void OnTick()
   if(ticket == -1) {
     //Order Open
     ticket = CheckSendOrder(zzPointLong);
+    if(ticket != -1) {
+      openedBars = Bars;
+    }
     // printf("CheckSendOrder ticket:%d", ticket);
   } else {
     //Order Close
@@ -222,8 +227,9 @@ bool CheckCloseOrder(int aTicket) {
   //--- go trading only for first tiks of new bar
   if(Volume[0]>1) return false;
 
-  // エントリーフラグが立っていたら処理する
-  if(!isEntry) return false;
+  if(openedBars + closeBarOffset < Bars) {
+    return false;
+  }
 
   if(!OrderSelect(aTicket,SELECT_BY_TICKET)) {
     return false;
