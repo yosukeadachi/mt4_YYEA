@@ -56,8 +56,9 @@ void OnTick()
 
   //HighLowLines
   for(int i = 0; i < ArraySize(hllResults); i++) {
-    hllResults[i].high = iCustom(NULL,period,"HighLowLines",(i*2)+0,0);
-    hllResults[i].low = iCustom(NULL,period,"HighLowLines",(i*2)+1,0);
+    int _timeframe = PERIOD_D1;
+    hllResults[i].high = iHigh(NULL,_timeframe,i);
+    hllResults[i].low = iLow(NULL,_timeframe,i);
   }
   // printf("%s highlow:0[H%.3f:L%.3f],1[H%.3f:L%.3f],2[H%.3f:L%.3f],3[H%.3f:L%.3f]", 
   //     generateTickTimeStr(),
@@ -119,19 +120,19 @@ void OnTick()
      (zzPointLong.barIds[0] == 1) &&
      (zzPointShort.barIds[0] == 1))
   {
-    printf("Long [0](%d:%f) [1](%d:%f)", 
-      zzPointLong.barIds[0], zzPointLong.values[0],
-      zzPointLong.barIds[1], zzPointLong.values[1]);
-    printf("Short [0](%d:%f) [1](%d:%f)", 
-      zzPointShort.barIds[0], zzPointShort.values[0],
-      zzPointShort.barIds[1], zzPointShort.values[1]);
+    // printf("Long [0](%d:%f) [1](%d:%f)", 
+    //   zzPointLong.barIds[0], zzPointLong.values[0],
+    //   zzPointLong.barIds[1], zzPointLong.values[1]);
+    // printf("Short [0](%d:%f) [1](%d:%f)", 
+    //   zzPointShort.barIds[0], zzPointShort.values[0],
+    //   zzPointShort.barIds[1], zzPointShort.values[1]);
 
     double _rangeOffset[] = {-0.05,0.05};
     double _target = zzPointLong.values[0];
     if(isTouch(hllResults, _target, _rangeOffset)) {
-      printf("touch %f", _target);
+      // printf("touch %f", _target);
       int shadow = getUpperLowerShadow(1);
-      printf("shadow:%d", shadow);
+      // printf("shadow:%d", shadow);
       if(shadow != 0) {
         isEntry = true;
       }
@@ -195,7 +196,7 @@ int CheckSendOrder(ZZ_point &aZZPoint)
   if(!isEntry) return -1;
   
 //--- sell conditions
-  printf("CheckSendOrder aZZPoint.values:%f,%f",aZZPoint.values[0],aZZPoint.values[1]);
+  // printf("CheckSendOrder aZZPoint.values:%f,%f",aZZPoint.values[0],aZZPoint.values[1]);
   if(aZZPoint.values[0] > aZZPoint.values[1])
   {
     res=OrderSend(Symbol(),OP_SELL,LotsOptimized(),Bid,3,0,0,"",MAGICMA,0,Red);
@@ -229,7 +230,7 @@ bool CheckCloseOrder(int aTicket) {
   }
 
   double _lots = OrderLots();
-  printf("CheckCloseOrder ticket:%d lots:%f",aTicket, _lots);
+  // printf("CheckCloseOrder ticket:%d lots:%f",aTicket, _lots);
   bool _closeResult = false;
   if(OrderType() == OP_BUY) {
     _closeResult = OrderClose(OrderTicket(),OrderLots(),Bid,3,Green);
@@ -244,7 +245,7 @@ bool CheckCloseOrder(int aTicket) {
 //最適なロットサイズを計算
 double LotsOptimized()
 {
-  return 0.1;
+  return 0.01;
 }
 
 //+------------------------------------------------------------------+
@@ -257,8 +258,8 @@ bool isTouch(HighLowPair &aHLLResults[], double aTarget, double &aRangeOffset[])
     double _range[] = {0,0};
     _range[0] = aRangeOffset[0] + _hll.high;
     _range[1] = aRangeOffset[1] + _hll.high;
-    printf("isToush[%d] high %.3f(%f+%f) < %.3f < %.3f(%f+%f)", 
-      i, _range[0], aRangeOffset[0], _hll.high, aTarget, _range[1], aRangeOffset[1], _hll.high);
+    // printf("isToush[%d] high %.3f(%f+%f) < %.3f < %.3f(%f+%f)", 
+    //   i, _range[0], aRangeOffset[0], _hll.high, aTarget, _range[1], aRangeOffset[1], _hll.high);
     if(_range[0] <= aTarget && aTarget <= _range[1]) {
       _isTouch = true;
       break;
@@ -266,8 +267,8 @@ bool isTouch(HighLowPair &aHLLResults[], double aTarget, double &aRangeOffset[])
     //low
     _range[0] = aRangeOffset[0] + _hll.low;
     _range[1] = aRangeOffset[1] + _hll.low;
-    printf("isToush[%d] low %.3f(%f+%f) < %.3f < %.3f(%f+%f)", 
-      i, _range[0], aRangeOffset[0], _hll.low, aTarget, _range[1], aRangeOffset[1], _hll.low);
+    // printf("isToush[%d] low %.3f(%f+%f) < %.3f < %.3f(%f+%f)", 
+    //   i, _range[0], aRangeOffset[0], _hll.low, aTarget, _range[1], aRangeOffset[1], _hll.low);
     if(_range[0] <= aTarget && aTarget <= _range[1]) {
       _isTouch = true;
       break;
