@@ -38,7 +38,7 @@ ZZ_point zzPointShort;
 HighLowPair hllResults[4];
 
 //UpperLowerShadow
-int UpperLowerShadowMagnification = 3;
+double UpperLowerShadowMagnification = 2.5;
 
 //Order
 #define MAGICMA 20180826
