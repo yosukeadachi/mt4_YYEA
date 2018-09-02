@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2018, Yosuke Adachi"
 #property link      ""
-#property version   "1.01"
+#property version   "1.10"
 #property description ""
 
 int period = PERIOD_M5;
@@ -16,23 +16,10 @@ struct HighLowPair {
   double low;
 };
 
-//zigzag
-struct ZZ_param {
-    int depth;
-    int deviation;
-    int backstep;
-};
-struct ZZ_result {
-    double last;
-    HighLowPair pair;
-};
-
-struct ZZ_point {
-  int barIds[2];    //バーID
-  double values[2]; //現在=0 一つ前=1
-};
-ZZ_point zzPointLong;
-ZZ_point zzPointShort;
+//RSI
+int rsiPesiod = 14;
+double rsiLimitUpper = 70;
+double rsiLimitLower = 30;
 
 //HighLowLines
 HighLowPair hllResults[4];
@@ -70,67 +57,14 @@ void OnTick()
   //     hllResults[3].high,hllResults[3].low
   // );
 
-  //ZigZag
-  ZZ_param zzpl = { 15, 5, 3};
-  ZZ_param zzps = { 5, 5, 3};
-  int _mode = 0;
-
-  //転換点を取得
-  int bar = 0;
-  int pointIndex = 0;
-  //Long
-  pointIndex = 0;
-  for(bar = 0; bar < Bars; bar++) {
-    ZZ_result zzResultLong = {0,{0,0}};
-    zzResultLong.last = iCustom(NULL,period,"ZigZag",zzpl.depth, zzpl.deviation, zzpl.backstep, _mode+0, bar);
-    zzResultLong.pair.high = iCustom(NULL,period,"ZigZag",zzpl.depth, zzpl.deviation, zzpl.backstep, _mode+1, bar);
-    zzResultLong.pair.low = iCustom(NULL,period,"ZigZag",zzpl.depth, zzpl.deviation, zzpl.backstep, _mode+2, bar);
-    if(zzResultLong.last != 0) {
-      zzPointLong.values[pointIndex] = zzResultLong.last;
-      zzPointLong.barIds[pointIndex] = bar;
-      pointIndex++;
-      if(pointIndex >= ArraySize(zzPointLong.values)) {
-        break;
-      }
-    }
-  }
-  // printf("Long [0](%d:%f) [1](%d:%f)", 
-  //   zzPointLong.barIds[0], zzPointLong.values[0],
-  //   zzPointLong.barIds[1], zzPointLong.values[1]);
-  //Short
-  pointIndex = 0;
-  for(bar = 0; bar < Bars; bar++) {
-    ZZ_result zzResultShort = {0,{0,0}};
-    zzResultShort.last = iCustom(NULL,period,"ZigZag",zzps.depth, zzps.deviation, zzps.backstep, _mode+0, bar);
-    zzResultShort.pair.high = iCustom(NULL,period,"ZigZag",zzps.depth, zzps.deviation, zzps.backstep, _mode+1, bar);
-    zzResultShort.pair.low = iCustom(NULL,period,"ZigZag",zzps.depth, zzps.deviation, zzps.backstep, _mode+2, bar);
-    if(zzResultShort.last != 0) {
-      zzPointShort.values[pointIndex] = zzResultShort.last;
-      zzPointShort.barIds[pointIndex] = bar;
-      pointIndex++;
-      if(pointIndex >= ArraySize(zzPointShort.values)) {
-        break;
-      }
-    }
-  }
-  // printf("Short [0](%d:%f) [1](%d:%f)", 
-  //   zzPointShort.barIds[0], zzPointShort.values[0],
-  //   zzPointShort.barIds[1], zzPointShort.values[1]);
+  //RSI
+  double _rsi = iCustom(NULL,period,"RSI",rsiPesiod,0,0);
 
   //エントリーチェック
-  if((zzPointLong.values[0] == zzPointShort.values[0]) &&
-     (zzPointLong.barIds[0] == 1) &&
-     (zzPointShort.barIds[0] == 1))
+  if((_rsi <= rsiLimitLower) || (_rsi >= rsiLimitUpper))
   {
-    // printf("Long [0](%d:%f) [1](%d:%f)", 
-    //   zzPointLong.barIds[0], zzPointLong.values[0],
-    //   zzPointLong.barIds[1], zzPointLong.values[1]);
-    // printf("Short [0](%d:%f) [1](%d:%f)", 
-    //   zzPointShort.barIds[0], zzPointShort.values[0],
-    //   zzPointShort.barIds[1], zzPointShort.values[1]);
-
     double _rangeOffset[] = {-0.05,0.05};
-    double _target = zzPointLong.values[0];
+    double _target = Open[0];
     if(isTouch(hllResults, _target, _rangeOffset)) {
       // printf("touch %f", _target);
       int shadow = getUpperLowerShadow(1);
@@ -144,7 +78,7 @@ void OnTick()
   //エントリー処理
   if(ticket == -1) {
     //Order Open
-    ticket = CheckSendOrder(zzPointLong);
+    ticket = CheckSendOrder(_rsi);
     if(ticket != -1) {
       openedTime = Time[0];
     }
@@ -191,7 +125,7 @@ int getUpperLowerShadow(int aBar) {
 //Order
 //+------------------------------------------------------------------+
 //Check for open order conditions 
-int CheckSendOrder(ZZ_point &aZZPoint)
+int CheckSendOrder(double aRsi)
 {
   int    res;
   //--- go trading only for first tiks of new bar
@@ -202,7 +136,7 @@ int CheckSendOrder(ZZ_point &aZZPoint)
   
 //--- sell conditions
   // printf("CheckSendOrder aZZPoint.values:%f,%f",aZZPoint.values[0],aZZPoint.values[1]);
-  if(aZZPoint.values[0] > aZZPoint.values[1])
+  if(aRsi >= rsiLimitUpper)
   {
     res=OrderSend(Symbol(),OP_SELL,LotsOptimized(),Bid,3,0,0,"",MAGICMA,0,Red);
     if(res != -1) {
@@ -211,7 +145,7 @@ int CheckSendOrder(ZZ_point &aZZPoint)
     return res;
   }
 //--- buy conditions
-  if(aZZPoint.values[0] < aZZPoint.values[1])
+  if(aRsi <= rsiLimitLower)
   {
     res=OrderSend(Symbol(),OP_BUY,LotsOptimized(),Ask,3,0,0,"",MAGICMA,0,Blue);
     if(res != -1) {
