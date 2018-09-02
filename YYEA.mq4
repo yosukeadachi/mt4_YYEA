@@ -38,14 +38,14 @@ ZZ_point zzPointShort;
 HighLowPair hllResults[4];
 
 //UpperLowerShadow
-double UpperLowerShadowMagnification = 2.5;
+double UpperLowerShadowMagnification = 1.0;
 
 //Order
 #define MAGICMA 20180826
 int ticket = -1;
 bool isEntry = false;
 double closePrise = 0;
-int closeTimeOffset = 10*60;//間隔 秒
+int closeTimeOffset = 15*60;//間隔 秒
 datetime openedTime = D'1970.01.01 00:01:02';
 
 //+------------------------------------------------------------------+
