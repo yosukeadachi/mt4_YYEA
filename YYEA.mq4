@@ -45,8 +45,8 @@ double UpperLowerShadowMagnification = 2.5;
 int ticket = -1;
 bool isEntry = false;
 double closePrise = 0;
-int closeBarOffset = 1;
-int openedBars = 0;
+int closeTimeOffset = 10*60;//間隔 秒
+datetime openedTime = D'1970.01.01 00:01:02';
 
 //+------------------------------------------------------------------+
 //| OnTick function                                                  |
@@ -146,7 +146,7 @@ void OnTick()
     //Order Open
     ticket = CheckSendOrder(zzPointLong);
     if(ticket != -1) {
-      openedBars = Bars;
+      openedTime = Time[0];
     }
     // printf("CheckSendOrder ticket:%d", ticket);
   } else {
@@ -223,11 +223,14 @@ int CheckSendOrder(ZZ_point &aZZPoint)
 //---
 }
 
+//Check for close order conditions 
 bool CheckCloseOrder(int aTicket) {
   //--- go trading only for first tiks of new bar
   if(Volume[0]>1) return false;
 
-  if(openedBars + closeBarOffset < Bars) {
+  // printf("openedTime:%d closeTimeOffset:%d (%d) Time[0]:%d",
+    // openedTime,closeTimeOffset,(openedTime + closeTimeOffset),Time[0]);
+  if((openedTime + closeTimeOffset) > Time[0]) {
     return false;
   }
 
