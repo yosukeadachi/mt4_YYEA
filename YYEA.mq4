@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2018, Yosuke Adachi"
 #property link      ""
-#property version   "1.20"
+#property version   "1.30"
 #property description ""
 
 int period = PERIOD_M5;
@@ -108,25 +108,30 @@ void OnTick()
   //エントリー処理
   if(ticket == -1) {
     //Order Open
-    bool _isBuy = false;
-    if(_rsi <= rsiLimitLower) {
-      _isBuy = true;
+    // エントリーフラグが立っていたら処理する
+    if((Volume[0]<=1) && _isEntry) {
+      bool _isBuy = false;
+      if(_rsi <= rsiLimitLower) {
+        _isBuy = true;
+      }
+      else if(_rsi >= rsiLimitUpper) {
+        _isBuy = false;
+      }
+      ticket = SendOrder(_isBuy);
+      if(ticket != -1) {
+        openedTime = Time[0];
+      }
+      // printf("SendOrder ticket:%d", ticket);
     }
-    else if(_rsi >= rsiLimitUpper) {
-      _isBuy = false;
-    }
-    ticket = CheckSendOrder(_isEntry,_isBuy);
-    if(ticket != -1) {
-      openedTime = Time[0];
-    }
-    // printf("CheckSendOrder ticket:%d", ticket);
   } else {
     //Order Close
-    bool _result = CheckCloseOrder(ticket);
-    if(_result) {
-      ticket = -1;
+    if(Volume[0]<=1) {
+      bool _result = CloseOrder(ticket);
+      if(_result) {
+        ticket = -1;
+      }
+      // printf("CloseOrder _result:%d", _result);
     }
-    // printf("CheckCloseOrder _result:%d", _result);
   }
 }
 //+------------------------------------------------------------------+
@@ -164,18 +169,11 @@ int getUpperLowerShadow(int aBar) {
 //+------------------------------------------------------------------+
 //Order
 //+------------------------------------------------------------------+
-//Check for open order conditions
+//Open order conditions
 // aIsBuy 
-int CheckSendOrder(bool aIsEntry, bool aIsBuy)
+int SendOrder(bool aIsBuy)
 {
-  int    res;
-  //--- go trading only for first tiks of new bar
-  if(Volume[0]>1) return -1;
-
-  // エントリーフラグが立っていたら処理する
-  if(!aIsEntry) return -1;
-  
-  // printf("CheckSendOrder aZZPoint.values:%f,%f",aZZPoint.values[0],aZZPoint.values[1]);
+  int res = -1;  
   if(aIsBuy)
   {
 //--- buy conditions
@@ -189,14 +187,10 @@ int CheckSendOrder(bool aIsEntry, bool aIsBuy)
     return res;
   }
   return -1;
-//---
 }
 
-//Check for close order conditions 
-bool CheckCloseOrder(int aTicket) {
-  //--- go trading only for first tiks of new bar
-  if(Volume[0]>1) return false;
-
+//Close order conditions 
+bool CloseOrder(int aTicket) {
   // printf("openedTime:%d closeTimeOffset:%d (%d) Time[0]:%d",
     // openedTime,closeTimeOffset,(openedTime + closeTimeOffset),Time[0]);
   if((openedTime + closeTimeOffset) > Time[0]) {
@@ -217,6 +211,7 @@ bool CheckCloseOrder(int aTicket) {
   }
   return _closeResult;
 }
+
 //最適なロットサイズを計算
 double LotsOptimized()
 {
