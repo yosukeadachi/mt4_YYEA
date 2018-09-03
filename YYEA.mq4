@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2018, Yosuke Adachi"
 #property link      ""
-#property version   "1.10"
+#property version   "1.20"
 #property description ""
 
 int period = PERIOD_M5;
@@ -30,7 +30,6 @@ double UpperLowerShadowMagnification = 1.0;
 //Order
 #define MAGICMA 20180826
 int ticket = -1;
-bool isEntry = false;
 double closePrise = 0;
 int closeTimeOffset = 15*60;//間隔 秒
 datetime openedTime = D'1970.01.01 00:01:02';
@@ -43,8 +42,9 @@ void OnTick()
   //--- go calculate only for first tiks of new bar
   if(Volume[0]>1) return;
 
+  int i = 0;
   //HighLowLines
-  for(int i = 0; i < ArraySize(hllResults); i++) {
+  for(i = 0; i < ArraySize(hllResults); i++) {
     int _timeframe = PERIOD_D1;
     hllResults[i].high = iHigh(NULL,_timeframe,i);
     hllResults[i].low = iLow(NULL,_timeframe,i);
@@ -58,27 +58,64 @@ void OnTick()
   // );
 
   //RSI
-  double _rsi = iCustom(NULL,period,"RSI",rsiPesiod,0,0);
+  double _rsi = iCustom(NULL,period,"RSI",rsiPesiod,0,1);
 
   //エントリーチェック
+  bool _isOkRsi = false;
   if((_rsi <= rsiLimitLower) || (_rsi >= rsiLimitUpper))
   {
-    double _rangeOffset[] = {-0.05,0.05};
-    double _target = Open[0];
-    if(isTouch(hllResults, _target, _rangeOffset)) {
-      // printf("touch %f", _target);
-      int shadow = getUpperLowerShadow(1);
-      // printf("shadow:%d", shadow);
-      if(shadow != 0) {
-        isEntry = true;
-      }
+    _isOkRsi = true;
+  }
+
+  //タッチ条件
+  //HighLowの1~4までが1つ前のバーのOpenClose範囲に入っていればタッチとする
+  bool _isTouch = false;
+  double _prevLow = Low[1];
+  double _prevHigh = High[1];
+  for(i = 1; i < ArraySize(hllResults); i++) {
+    double _target = 0;
+    _target = hllResults[i].low;
+    if((_prevLow <= _target) && (_target <= _prevHigh)) {
+      _isTouch = true;
+      printf("isTouch Low:%d (%f < %f < %f)", i, _prevLow, _target, _prevHigh);
+      break;
     }
+    _target = hllResults[i].high;
+    if((_prevLow <= _target) && (_target <= _prevHigh)) {
+      _isTouch = true;
+      printf("isTouch high:%d (%f < %f < %f)", i, _prevLow, _target, _prevHigh);
+      break;
+    }
+  }
+
+  //ヒゲチェック
+  bool _isShadow = false;
+  int _shadowResult = getUpperLowerShadow(1);
+  if(_shadowResult != 0) {
+    _isShadow = true;
+    printf("isShadow TRUE result:%d", _shadowResult);
+  }
+
+  //エントリーまとめ
+  bool _isEntry = false;
+  printf("_isOkRsi:%d _isTouch:%d _isShadow:%d", 
+    _isOkRsi, _isTouch, _isShadow);
+  if(_isOkRsi && _isTouch && _isShadow)
+  {
+    _isEntry = true;
   }
 
   //エントリー処理
   if(ticket == -1) {
     //Order Open
-    ticket = CheckSendOrder(_rsi);
+    bool _isBuy = false;
+    if(_rsi <= rsiLimitLower) {
+      _isBuy = true;
+    }
+    else if(_rsi >= rsiLimitUpper) {
+      _isBuy = false;
+    }
+    ticket = CheckSendOrder(_isEntry,_isBuy);
     if(ticket != -1) {
       openedTime = Time[0];
     }
@@ -107,6 +144,9 @@ int getUpperLowerShadow(int aBar) {
   double Upper_Shadow = MathMin(High[aBar] - Open[aBar], High[aBar] - Close[aBar]);
   //下ヒゲの計算
   double Lower_Shadow = MathMin(Open[aBar] - Low[aBar], Close[aBar] - Low[aBar]);
+  printf("Real_Body:%f",Real_Body);
+  printf("Upper_Shadow:%f",Upper_Shadow);
+  printf("Lower_Shadow:%f",Lower_Shadow);
   if(Real_Body * UpperLowerShadowMagnification <= Lower_Shadow &&
   Upper_Shadow * UpperLowerShadowMagnification <= Lower_Shadow) {
     //  printf("!!!!^%d^!!!!",i);
@@ -124,33 +164,28 @@ int getUpperLowerShadow(int aBar) {
 //+------------------------------------------------------------------+
 //Order
 //+------------------------------------------------------------------+
-//Check for open order conditions 
-int CheckSendOrder(double aRsi)
+//Check for open order conditions
+// aIsBuy 
+int CheckSendOrder(bool aIsEntry, bool aIsBuy)
 {
   int    res;
   //--- go trading only for first tiks of new bar
   if(Volume[0]>1) return -1;
 
   // エントリーフラグが立っていたら処理する
-  if(!isEntry) return -1;
+  if(!aIsEntry) return -1;
   
-//--- sell conditions
   // printf("CheckSendOrder aZZPoint.values:%f,%f",aZZPoint.values[0],aZZPoint.values[1]);
-  if(aRsi >= rsiLimitUpper)
+  if(aIsBuy)
   {
-    res=OrderSend(Symbol(),OP_SELL,LotsOptimized(),Bid,3,0,0,"",MAGICMA,0,Red);
-    if(res != -1) {
-      isEntry = false;
-    }
+//--- buy conditions
+    res=OrderSend(Symbol(),OP_BUY,LotsOptimized(),Ask,3,0,0,"",MAGICMA,0,Blue);
     return res;
   }
-//--- buy conditions
-  if(aRsi <= rsiLimitLower)
+  else
   {
-    res=OrderSend(Symbol(),OP_BUY,LotsOptimized(),Ask,3,0,0,"",MAGICMA,0,Blue);
-    if(res != -1) {
-      isEntry = false;
-    }
+//--- sell conditions
+    res=OrderSend(Symbol(),OP_SELL,LotsOptimized(),Bid,3,0,0,"",MAGICMA,0,Red);
     return res;
   }
   return -1;
@@ -180,9 +215,6 @@ bool CheckCloseOrder(int aTicket) {
   } else if(OrderType() == OP_SELL) {
     _closeResult = OrderClose(OrderTicket(),OrderLots(),Ask,3,Green);
   }
-  if(_closeResult) {
-    isEntry = false;
-  }
   return _closeResult;
 }
 //最適なロットサイズを計算
@@ -193,32 +225,6 @@ double LotsOptimized()
 
 //+------------------------------------------------------------------+
 //Utility
-bool isTouch(HighLowPair &aHLLResults[], double aTarget, double &aRangeOffset[]) {
-  bool _isTouch = false;
-  
-  for(int i = 0; i < ArraySize(aHLLResults); i++) {
-    HighLowPair _hll = aHLLResults[i];
-    double _range[] = {0,0};
-    _range[0] = aRangeOffset[0] + _hll.high;
-    _range[1] = aRangeOffset[1] + _hll.high;
-    // printf("isToush[%d] high %.3f(%f+%f) < %.3f < %.3f(%f+%f)", 
-    //   i, _range[0], aRangeOffset[0], _hll.high, aTarget, _range[1], aRangeOffset[1], _hll.high);
-    if(_range[0] <= aTarget && aTarget <= _range[1]) {
-      _isTouch = true;
-      break;
-    }
-    //low
-    _range[0] = aRangeOffset[0] + _hll.low;
-    _range[1] = aRangeOffset[1] + _hll.low;
-    // printf("isToush[%d] low %.3f(%f+%f) < %.3f < %.3f(%f+%f)", 
-    //   i, _range[0], aRangeOffset[0], _hll.low, aTarget, _range[1], aRangeOffset[1], _hll.low);
-    if(_range[0] <= aTarget && aTarget <= _range[1]) {
-      _isTouch = true;
-      break;
-    }
-  }
-  return _isTouch;
-}
 
 //+------------------------------------------------------------------+
 //Debug
