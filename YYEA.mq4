@@ -46,8 +46,8 @@ void OnTick()
   //HighLowLines
   for(i = 0; i < ArraySize(hllResults); i++) {
     int _timeframe = PERIOD_D1;
-    hllResults[i].high = iHigh(NULL,_timeframe,i);
-    hllResults[i].low = iLow(NULL,_timeframe,i);
+    hllResults[i].high = iCustom(NULL,period,"HighLow3Days",(i*2)+0,0);
+    hllResults[i].low = iCustom(NULL,period,"HighLow3Days",(i*2)+1,0);
   }
   // printf("%s highlow:0[H%.3f:L%.3f],1[H%.3f:L%.3f],2[H%.3f:L%.3f],3[H%.3f:L%.3f]", 
   //     generateTickTimeStr(),
@@ -77,13 +77,13 @@ void OnTick()
     _target = hllResults[i].low;
     if((_prevLow <= _target) && (_target <= _prevHigh)) {
       _isTouch = true;
-      printf("isTouch Low:%d (%f < %f < %f)", i, _prevLow, _target, _prevHigh);
+      // printf("isTouch Low:%d (%f < %f < %f)", i, _prevLow, _target, _prevHigh);
       break;
     }
     _target = hllResults[i].high;
     if((_prevLow <= _target) && (_target <= _prevHigh)) {
       _isTouch = true;
-      printf("isTouch high:%d (%f < %f < %f)", i, _prevLow, _target, _prevHigh);
+      // printf("isTouch high:%d (%f < %f < %f)", i, _prevLow, _target, _prevHigh);
       break;
     }
   }
@@ -93,13 +93,13 @@ void OnTick()
   int _shadowResult = getUpperLowerShadow(1);
   if(_shadowResult != 0) {
     _isShadow = true;
-    printf("isShadow TRUE result:%d", _shadowResult);
+    // printf("isShadow TRUE result:%d", _shadowResult);
   }
 
   //エントリーまとめ
   bool _isEntry = false;
-  printf("_isOkRsi:%d _isTouch:%d _isShadow:%d", 
-    _isOkRsi, _isTouch, _isShadow);
+  // printf("_isOkRsi:%d _isTouch:%d _isShadow:%d", 
+  //   _isOkRsi, _isTouch, _isShadow);
   if(_isOkRsi && _isTouch && _isShadow)
   {
     _isEntry = true;
@@ -149,9 +149,9 @@ int getUpperLowerShadow(int aBar) {
   double Upper_Shadow = MathMin(High[aBar] - Open[aBar], High[aBar] - Close[aBar]);
   //下ヒゲの計算
   double Lower_Shadow = MathMin(Open[aBar] - Low[aBar], Close[aBar] - Low[aBar]);
-  printf("Real_Body:%f",Real_Body);
-  printf("Upper_Shadow:%f",Upper_Shadow);
-  printf("Lower_Shadow:%f",Lower_Shadow);
+  // printf("Real_Body:%f",Real_Body);
+  // printf("Upper_Shadow:%f",Upper_Shadow);
+  // printf("Lower_Shadow:%f",Lower_Shadow);
   if(Real_Body * UpperLowerShadowMagnification <= Lower_Shadow &&
   Upper_Shadow * UpperLowerShadowMagnification <= Lower_Shadow) {
     //  printf("!!!!^%d^!!!!",i);
