@@ -33,13 +33,14 @@ StructHllBufferInfo hllBuffers[HIGH_LOW_LINES_DAYS];
 HighLowPair hllResults[HIGH_LOW_LINES_DAYS];
 
 //UpperLowerShadow
-double UpperLowerShadowMagnification = 1.0;
+double UpperLowerShadowMagnificationLargeShadow = 1.0;
+double UpperLowerShadowMagnificationSmallShadow = 0.5;
 
 //Order
 #define MAGICMA 20180826
 int ticket = -1;
 double closePrise = 0;
-int closeTimeOffset = 15*60;//間隔 秒
+int closeTimeOffset = 5*60;//間隔 秒
 datetime openedTime = D'1970.01.01 00:01:02';
 
 //+------------------------------------------------------------------+
@@ -161,16 +162,28 @@ int getUpperLowerShadow(int aBar) {
   // printf("Real_Body:%f",Real_Body);
   // printf("Upper_Shadow:%f",Upper_Shadow);
   // printf("Lower_Shadow:%f",Lower_Shadow);
-  if(Real_Body * UpperLowerShadowMagnification <= Lower_Shadow &&
-  Upper_Shadow * UpperLowerShadowMagnification <= Lower_Shadow) {
-    //  printf("!!!!^%d^!!!!",i);
-    return -1;
+  //実体 < ヒゲ
+  if((Real_Body < Upper_Shadow) || (Real_Body < Lower_Shadow)) {
+    if(Real_Body * UpperLowerShadowMagnificationLargeShadow <= Lower_Shadow &&
+    Upper_Shadow * UpperLowerShadowMagnificationLargeShadow <= Lower_Shadow) {
+      return -1;
+    }
+    if(Real_Body * UpperLowerShadowMagnificationLargeShadow <= Upper_Shadow && 
+    Lower_Shadow * UpperLowerShadowMagnificationLargeShadow <= Upper_Shadow) {
+      return 1;
+    }
+  } else {
+  //実体　>= ヒゲ
+    if(Real_Body * UpperLowerShadowMagnificationSmallShadow <= Lower_Shadow &&
+    Upper_Shadow * UpperLowerShadowMagnificationSmallShadow <= Lower_Shadow) {
+      return -1;
+    }
+    if(Real_Body * UpperLowerShadowMagnificationSmallShadow <= Upper_Shadow && 
+    Lower_Shadow * UpperLowerShadowMagnificationSmallShadow <= Upper_Shadow) {
+      return 1;
+    }
   }
-  if(Real_Body * UpperLowerShadowMagnification <= Upper_Shadow && 
-  Lower_Shadow * UpperLowerShadowMagnification <= Upper_Shadow) {
-    //  printf("!!!!_%d_!!!!",i);
-    return 1;
-  }
+
   return 0;
 }
 
