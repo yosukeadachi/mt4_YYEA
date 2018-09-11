@@ -22,7 +22,15 @@ double rsiLimitUpper = 70;
 double rsiLimitLower = 30;
 
 //HighLowLines
-HighLowPair hllResults[4];
+#define HIGH_LOW_LINES_DAYS  4  //日数
+struct StructHllBufferInfo {
+  int dayIndex;
+  datetime date;
+  double highest;
+  double lowest;
+};
+StructHllBufferInfo hllBuffers[HIGH_LOW_LINES_DAYS];
+HighLowPair hllResults[HIGH_LOW_LINES_DAYS];
 
 //UpperLowerShadow
 double UpperLowerShadowMagnification = 1.0;
@@ -43,11 +51,12 @@ void OnTick()
   if(Volume[0]>1) return;
 
   int i = 0;
+
   //HighLowLines
+  UpdateHighLowLinesAll(hllBuffers);
   for(i = 0; i < ArraySize(hllResults); i++) {
-    int _timeframe = PERIOD_D1;
-    hllResults[i].high = iCustom(NULL,period,"HighLow3Days",(i*2)+0,0);
-    hllResults[i].low = iCustom(NULL,period,"HighLow3Days",(i*2)+1,0);
+    hllResults[i].high = hllBuffers[i].highest;
+    hllResults[i].low = hllBuffers[i].lowest;
   }
   // printf("%s highlow:0[H%.3f:L%.3f],1[H%.3f:L%.3f],2[H%.3f:L%.3f],3[H%.3f:L%.3f]", 
   //     generateTickTimeStr(),
@@ -165,6 +174,57 @@ int getUpperLowerShadow(int aBar) {
   return 0;
 }
 
+//HighLowLine
+//日付更新
+bool UpdateHighLowLinesDatetime(StructHllBufferInfo &aBuffer) {
+  bool _doUpdate = false;
+  //日付更新
+  datetime _new = getNowDatetime() - (aBuffer.dayIndex * 60 * 60 *24);
+  if(aBuffer.date != _new) {
+    aBuffer.date = _new;
+    _doUpdate = true;
+  }
+  if(_new == getNowDatetime()) {
+    _doUpdate = true;
+  }
+  return _doUpdate;
+}
+//高値安値更新
+void UpdateHighLowLinesValue(StructHllBufferInfo &aBuffer) {
+  aBuffer.highest = 0;
+  aBuffer.lowest = 999999999.0f;
+  //highest,lowest 更新
+  datetime _beginDatetime = StrToTime(TimeToStr(aBuffer.date, TIME_DATE) + " 00:00:00");
+  datetime _endDatetime = StrToTime(TimeToStr(aBuffer.date, TIME_DATE) + " 23:59:59");
+  for(int bar = 0; bar < Bars; bar++) {
+    datetime _barDatetime = Time[bar];
+    //範囲が終わっていれば終了
+    if(_barDatetime < _beginDatetime) { 
+      break;
+    }
+    //範囲外なら次へ
+    if((_beginDatetime > _barDatetime) || (_barDatetime > _endDatetime)) {
+      continue;
+    }
+
+    //更新
+    if(aBuffer.highest < High[bar]) {
+      aBuffer.highest = High[bar];
+    }
+    if(aBuffer.lowest > Low[bar]) {
+      aBuffer.lowest = Low[bar];
+    }
+  }
+}
+//　HighLowLines全て更新
+void UpdateHighLowLinesAll(StructHllBufferInfo &aBuffers[]) {
+  for(int day = 0; day < ArraySize(aBuffers); day++) {
+    if(UpdateHighLowLinesDatetime(aBuffers[day])){
+      UpdateHighLowLinesValue(aBuffers[day]);
+    }
+  }
+}
+
 
 //+------------------------------------------------------------------+
 //Order
@@ -220,6 +280,13 @@ double LotsOptimized()
 
 //+------------------------------------------------------------------+
 //Utility
+datetime getNowDatetime() {
+  return StrToTime(
+        "" + 
+        IntegerToString(Year()) + "." +
+        IntegerToString(Month()) + "." + 
+         IntegerToString(Day())+ " 00:00");
+}
 
 //+------------------------------------------------------------------+
 //Debug
