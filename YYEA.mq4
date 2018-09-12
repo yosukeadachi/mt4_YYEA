@@ -40,8 +40,21 @@ double UpperLowerShadowMagnificationSmallShadow = 0.5;
 #define MAGICMA 20180826
 int ticket = -1;
 double closePrise = 0;
-int closeTimeOffset = 5*60;//間隔 秒
+int closeTimeOffset = 15*60;//間隔 秒
 datetime openedTime = D'1970.01.01 00:01:02';
+
+//+------------------------------------------------------------------+
+//| OnInit function                                                  |
+//+------------------------------------------------------------------+
+void OnInit()
+{
+  for(int i = 0; i < ArraySize(hllBuffers); i++) {
+    hllBuffers[i].dayIndex = i;
+    hllBuffers[i].date = 0;
+    hllBuffers[i].highest = 0;
+    hllBuffers[i].lowest = 999999999.9;
+  }
+}
 
 //+------------------------------------------------------------------+
 //| OnTick function                                                  |
@@ -97,6 +110,22 @@ void OnTick()
       break;
     }
   }
+
+  // if(_isTouch) {
+  //   printf("0:%s 1:%s 2:%s 3:%s",
+  //     TimeToStr(hllBuffers[0].date, TIME_DATE),
+  //     TimeToStr(hllBuffers[1].date, TIME_DATE),
+  //     TimeToStr(hllBuffers[2].date, TIME_DATE),
+  //     TimeToStr(hllBuffers[3].date, TIME_DATE)
+  //   );
+  //   printf("%s highlow:0[H%.3f:L%.3f],1[H%.3f:L%.3f],2[H%.3f:L%.3f],3[H%.3f:L%.3f]", 
+  //     generateTickTimeStr(),
+  //     hllResults[0].high,hllResults[0].low,
+  //     hllResults[1].high,hllResults[1].low,
+  //     hllResults[2].high,hllResults[2].low,
+  //     hllResults[3].high,hllResults[3].low
+  //   );
+  // }
 
   //ヒゲチェック
   bool _isShadow = false;
