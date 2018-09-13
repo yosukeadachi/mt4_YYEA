@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2018, Yosuke Adachi"
 #property link      ""
-#property version   "1.30"
+#property version   "1.40"
 #property description ""
 
 int period = PERIOD_M5;
@@ -42,6 +42,8 @@ int ticket = -1;
 double closePrise = 0;
 int closeTimeOffset = 15*60;//間隔 秒
 datetime openedTime = D'1970.01.01 00:01:02';
+int orderArrowIndex = 0;
+string orderArrowObjNameBase = "orderArrow";
 
 //+------------------------------------------------------------------+
 //| OnInit function                                                  |
@@ -54,6 +56,11 @@ void OnInit()
     hllBuffers[i].highest = 0;
     hllBuffers[i].lowest = 999999999.9;
   }
+}
+
+void OnDeinit(const int reason)
+{
+  DeleteOrderArrows();
 }
 
 //+------------------------------------------------------------------+
@@ -156,7 +163,11 @@ void OnTick()
       else if(_rsi >= rsiLimitUpper) {
         _isBuy = false;
       }
-      ticket = SendOrder(_isBuy);
+      int _cmd = OP_SELL;
+      if(_isBuy) {
+        _cmd = OP_BUY;
+      }
+      ticket = SendOrder(_cmd);
       if(ticket != -1) {
         openedTime = Time[0];
       }
@@ -273,19 +284,25 @@ void UpdateHighLowLinesAll(StructHllBufferInfo &aBuffers[]) {
 //+------------------------------------------------------------------+
 //Open order conditions
 // aIsBuy 
-int SendOrder(bool aIsBuy)
+int SendOrder(int aCmd)
 {
   int res = -1;  
-  if(aIsBuy)
+  if(aCmd == OP_BUY)
   {
 //--- buy conditions
     res=OrderSend(Symbol(),OP_BUY,LotsOptimized(),Ask,3,0,0,"",MAGICMA,0,Blue);
+    if(OrderSelect(res,SELECT_BY_TICKET)) {
+      CreateOrderAllow(OP_BUY, Time[1], Low[1]);
+    }
     return res;
   }
   else
   {
 //--- sell conditions
     res=OrderSend(Symbol(),OP_SELL,LotsOptimized(),Bid,3,0,0,"",MAGICMA,0,Red);
+    if(OrderSelect(res,SELECT_BY_TICKET)) {
+      CreateOrderAllow(OP_SELL, Time[1], High[1]);
+    }
     return res;
   }
   return -1;
@@ -320,6 +337,51 @@ double LotsOptimized()
   return 0.01;
 }
 
+//オーダー入れた時の矢印作成
+void CreateOrderAllow(int aOrderType, int aTimeBar, double aEntryValue) {
+  int chart_id = 0;
+  string obj_name = orderArrowObjNameBase + IntegerToString(orderArrowIndex);
+  ObjectCreate(chart_id,obj_name,                                     // オブジェクト作成
+              OBJ_ARROW,                                             // オブジェクトタイプ
+              0,                                                       // サブウインドウ番号
+              aTimeBar,                                               // 1番目の時間のアンカーポイント
+              aEntryValue                                         // 1番目の価格のアンカーポイント
+              );
+  color _color = clrBlue;
+  int _code_up = 233;  //上矢印
+  int _code_down = 234;  //下矢印
+  int _code = _code_up;//上矢印
+  int _anchor_up = ANCHOR_TOP;
+  int _anchor_down = ANCHOR_BOTTOM;
+  int _anchor = _anchor_up;
+  if(aOrderType == OP_BUY) {
+    _color = clrBlue;
+    _code = _code_up;
+    _anchor = _anchor_up;
+  } else if(aOrderType == OP_SELL) {
+    _color = clrRed;
+    _code = _code_down;
+    _anchor = _anchor_down;
+  }
+  ObjectSetInteger(chart_id,obj_name,OBJPROP_COLOR,_color);    // 色設定
+  ObjectSetInteger(chart_id,obj_name,OBJPROP_WIDTH,1);             // 幅設定
+  ObjectSetInteger(chart_id,obj_name,OBJPROP_BACK,false);           // オブジェクトの背景表示設定
+  ObjectSetInteger(chart_id,obj_name,OBJPROP_SELECTABLE,true);     // オブジェクトの選択可否設定
+  ObjectSetInteger(chart_id,obj_name,OBJPROP_SELECTED,false);      // オブジェクトの選択状態
+  ObjectSetInteger(chart_id,obj_name,OBJPROP_HIDDEN,true);         // オブジェクトリスト表示設定
+  ObjectSetInteger(chart_id,obj_name,OBJPROP_ZORDER,0);            // オブジェクトのチャートクリックイベント優先順位
+  ObjectSetInteger(chart_id,obj_name,OBJPROP_ANCHOR,_anchor); // アンカータイプ
+  ObjectSetInteger(chart_id,obj_name,OBJPROP_ARROWCODE,_code);      // アローコード
+  orderArrowIndex++;
+  // printf("CreateOrderAllow %d %f", aOrderType, aEntryValue);
+}
+
+//オーダー矢印削除
+void DeleteOrderArrows() {
+  for(int i = 0; i < orderArrowIndex; i++) {
+    ObjectDelete(orderArrowObjNameBase + IntegerToString(i));
+  }
+}
 //+------------------------------------------------------------------+
 //Utility
 datetime getNowDatetime() {
