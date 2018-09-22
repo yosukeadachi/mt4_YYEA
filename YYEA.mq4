@@ -17,7 +17,7 @@ struct HighLowPair {
 };
 
 //RSI
-int rsiPesiod = 9;
+int rsiPesiod = 14;
 double rsiLimitUpper = 70;
 double rsiLimitLower = 30;
 
