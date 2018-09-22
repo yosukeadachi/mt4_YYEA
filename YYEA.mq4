@@ -18,8 +18,8 @@ struct HighLowPair {
 
 //RSI
 int rsiPesiod = 14;
-double rsiLimitUpper = 70;
-double rsiLimitLower = 30;
+double rsiLimitUpper = 60;
+double rsiLimitLower = 40;
 
 //HighLowLines
 #define HIGH_LOW_LINES_DAYS  4  //日数
