@@ -16,10 +16,10 @@ struct HighLowPair {
   double low;
 };
 
-//RSI
-int rsiPesiod = 14;
-double rsiLimitUpper = 70;
-double rsiLimitLower = 30;
+// //RSI
+// int rsiPesiod = 14;
+// double rsiLimitUpper = 70;
+// double rsiLimitLower = 30;
 
 //HighLowLines
 #define HIGH_LOW_LINES_DAYS  4  //日数
@@ -36,11 +36,29 @@ HighLowPair hllResults[HIGH_LOW_LINES_DAYS];
 double UpperLowerShadowMagnificationLargeShadow = 1.0;
 double UpperLowerShadowMagnificationSmallShadow = 0.5;
 
+//zigzag
+struct ZZ_param {
+    int depth;
+    int deviation;
+    int backstep;
+};
+struct ZZ_result {
+    double last;
+    HighLowPair pair;
+};
+
+struct ZZ_point {
+  int barIds[2];    //バーID
+  double values[2]; //現在=0 一つ前=1
+};
+ZZ_point zzPointLong;
+ZZ_point zzPointShort;
+
 //Order
 #define MAGICMA 20180826
 int ticket = -1;
 double closePrise = 0;
-int closeTimeOffset = 15*60;//間隔 秒
+int closeTimeOffset = 5*60;//間隔 秒
 datetime openedTime = D'1970.01.01 00:01:02';
 int orderArrowIndex = 0;
 string orderArrowObjNameBase = "orderArrow";
@@ -87,15 +105,82 @@ void OnTick()
   //     hllResults[3].high,hllResults[3].low
   // );
 
-  //RSI
-  double _rsi = iCustom(NULL,period,"RSI",rsiPesiod,0,1);
+  // //RSI
+  // double _rsi = iCustom(NULL,period,"RSI",rsiPesiod,0,1);
+
+  //ZigZag
+  ZZ_param zzpl = { 15, 5, 3};
+  ZZ_param zzps = { 5, 5, 3};
+  int _mode = 0;
+
+  //転換点を取得
+  int bar = 0;
+  int pointIndex = 0;
+  //Long
+  pointIndex = 0;
+  for(bar = 0; bar < Bars; bar++) {
+    ZZ_result zzResultLong = {0,{0,0}};
+    zzResultLong.last = iCustom(NULL,period,"ZigZag",zzpl.depth, zzpl.deviation, zzpl.backstep, _mode+0, bar);
+    zzResultLong.pair.high = iCustom(NULL,period,"ZigZag",zzpl.depth, zzpl.deviation, zzpl.backstep, _mode+1, bar);
+    zzResultLong.pair.low = iCustom(NULL,period,"ZigZag",zzpl.depth, zzpl.deviation, zzpl.backstep, _mode+2, bar);
+    if(zzResultLong.last != 0) {
+      zzPointLong.values[pointIndex] = zzResultLong.last;
+      zzPointLong.barIds[pointIndex] = bar;
+      pointIndex++;
+      if(pointIndex >= ArraySize(zzPointLong.values)) {
+        break;
+      }
+    }
+  }
+  // printf("Long [0](%d:%f) [1](%d:%f)", 
+  //   zzPointLong.barIds[0], zzPointLong.values[0],
+  //   zzPointLong.barIds[1], zzPointLong.values[1]);
+  //Short
+  pointIndex = 0;
+  for(bar = 0; bar < Bars; bar++) {
+    ZZ_result zzResultShort = {0,{0,0}};
+    zzResultShort.last = iCustom(NULL,period,"ZigZag",zzps.depth, zzps.deviation, zzps.backstep, _mode+0, bar);
+    zzResultShort.pair.high = iCustom(NULL,period,"ZigZag",zzps.depth, zzps.deviation, zzps.backstep, _mode+1, bar);
+    zzResultShort.pair.low = iCustom(NULL,period,"ZigZag",zzps.depth, zzps.deviation, zzps.backstep, _mode+2, bar);
+    if(zzResultShort.last != 0) {
+      zzPointShort.values[pointIndex] = zzResultShort.last;
+      zzPointShort.barIds[pointIndex] = bar;
+      pointIndex++;
+      if(pointIndex >= ArraySize(zzPointShort.values)) {
+        break;
+      }
+    }
+  }
 
   //エントリーチェック
-  bool _isOkRsi = false;
-  if((_rsi <= rsiLimitLower) || (_rsi >= rsiLimitUpper))
+  // printf("Short [0](%d:%f) [1](%d:%f)", 
+  //   zzPointShort.barIds[0], zzPointShort.values[0],
+  //   zzPointShort.barIds[1], zzPointShort.values[1]);
+  //転換点が重なっているか
+  // かつ　転換点が高値安値範囲か
+  bool _isZZOverlap = false;
+  if((zzPointLong.values[0] == zzPointShort.values[0]) &&
+     (zzPointLong.barIds[0] == 1) &&
+     (zzPointShort.barIds[0] == 1))
   {
-    _isOkRsi = true;
+    double _targetValue = zzPointLong.values[0];
+    if(_targetValue >= Low[1] && _targetValue <= High[1]) {
+      _isZZOverlap = true;
+    }
+    // printf("Long [0](%d:%f) [1](%d:%f)", 
+    //   zzPointLong.barIds[0], zzPointLong.values[0],
+    //   zzPointLong.barIds[1], zzPointLong.values[1]);
+    // printf("Short [0](%d:%f) [1](%d:%f)", 
+    //   zzPointShort.barIds[0], zzPointShort.values[0],
+    //   zzPointShort.barIds[1], zzPointShort.values[1]);
   }
+
+  // //RSI
+  // bool _isOkRsi = false;
+  // if((_rsi <= rsiLimitLower) || (_rsi >= rsiLimitUpper))
+  // {
+  //   _isOkRsi = true;
+  // }
 
   //タッチ条件
   //HighLowの1~4までが1つ前のバーのOpenClose範囲に入っていればタッチとする
@@ -146,7 +231,7 @@ void OnTick()
   bool _isEntry = false;
   // printf("_isOkRsi:%d _isTouch:%d _isShadow:%d", 
   //   _isOkRsi, _isTouch, _isShadow);
-  if(_isOkRsi && _isTouch && _isShadow)
+  if(_isTouch && _isShadow && _isZZOverlap)
   {
     _isEntry = true;
   }
@@ -156,16 +241,12 @@ void OnTick()
     //Order Open
     // エントリーフラグが立っていたら処理する
     if((Volume[0]<=1) && _isEntry) {
-      bool _isBuy = false;
-      if(_rsi <= rsiLimitLower) {
-        _isBuy = true;
-      }
-      else if(_rsi >= rsiLimitUpper) {
-        _isBuy = false;
-      }
       int _cmd = OP_SELL;
-      if(_isBuy) {
+      if(zzPointLong.values[0] < zzPointLong.values[1]) {
         _cmd = OP_BUY;
+      }
+      else if(zzPointLong.values[0] > zzPointLong.values[1]) {
+        _cmd = OP_SELL;
       }
       ticket = SendOrder(_cmd);
       if(ticket != -1) {
