@@ -8,18 +8,17 @@
 #property version   "1.40"
 #property description ""
 
-int period = PERIOD_M5;
-
 //high low pair
 struct HighLowPair {
   double high;
   double low;
 };
 
-// //RSI
-// int rsiPesiod = 14;
-// double rsiLimitUpper = 70;
-// double rsiLimitLower = 30;
+//RSI
+int rsiPesiod = 14;
+double rsiLimitUpper = 70;
+double rsiLimitLower = 30;
+int rsiPreiodType = PERIOD_M5;
 
 //HighLowLines
 #define HIGH_LOW_LINES_DAYS  4  //日数
@@ -32,33 +31,33 @@ struct StructHllBufferInfo {
 StructHllBufferInfo hllBuffers[HIGH_LOW_LINES_DAYS];
 HighLowPair hllResults[HIGH_LOW_LINES_DAYS];
 
-//UpperLowerShadow
-double UpperLowerShadowMagnificationLargeShadow = 1.0;
-double UpperLowerShadowMagnificationSmallShadow = 0.5;
+// //UpperLowerShadow
+// double UpperLowerShadowMagnificationLargeShadow = 1.0;
+// double UpperLowerShadowMagnificationSmallShadow = 0.5;
 
-//zigzag
-struct ZZ_param {
-    int depth;
-    int deviation;
-    int backstep;
-};
-struct ZZ_result {
-    double last;
-    HighLowPair pair;
-};
+// //zigzag
+// struct ZZ_param {
+//     int depth;
+//     int deviation;
+//     int backstep;
+// };
+// struct ZZ_result {
+//     double last;
+//     HighLowPair pair;
+// };
 
-struct ZZ_point {
-  int barIds[2];    //バーID
-  double values[2]; //現在=0 一つ前=1
-};
-ZZ_point zzPointLong;
-ZZ_point zzPointShort;
+// struct ZZ_point {
+//   int barIds[2];    //バーID
+//   double values[2]; //現在=0 一つ前=1
+// };
+// ZZ_point zzPointLong;
+// ZZ_point zzPointShort;
 
 //Order
 #define MAGICMA 20180826
 int ticket = -1;
 double closePrise = 0;
-int closeTimeOffset = 5*60;//間隔 秒
+int closeTimeOffset = 15*60;//間隔 秒
 datetime openedTime = D'1970.01.01 00:01:02';
 int orderArrowIndex = 0;
 string orderArrowObjNameBase = "orderArrow";
@@ -86,8 +85,8 @@ void OnDeinit(const int reason)
 //+------------------------------------------------------------------+
 void OnTick()
 {
-  //--- go calculate only for first tiks of new bar
-  if(Volume[0]>1) return;
+  // //--- go calculate only for first tiks of new bar
+  // if(Volume[0]>1) return;
 
   int i = 0;
 
@@ -105,88 +104,87 @@ void OnTick()
   //     hllResults[3].high,hllResults[3].low
   // );
 
-  // //RSI
-  // double _rsi = iCustom(NULL,period,"RSI",rsiPesiod,0,1);
+  //RSI
+  double _rsi = iCustom(NULL,rsiPreiodType,"RSI",rsiPesiod,0,1);
 
-  //ZigZag
-  ZZ_param zzpl = { 15, 5, 3};
-  ZZ_param zzps = { 5, 5, 3};
-  int _mode = 0;
-
-  //転換点を取得
-  int bar = 0;
-  int pointIndex = 0;
-  //Long
-  pointIndex = 0;
-  for(bar = 0; bar < Bars; bar++) {
-    ZZ_result zzResultLong = {0,{0,0}};
-    zzResultLong.last = iCustom(NULL,period,"ZigZag",zzpl.depth, zzpl.deviation, zzpl.backstep, _mode+0, bar);
-    zzResultLong.pair.high = iCustom(NULL,period,"ZigZag",zzpl.depth, zzpl.deviation, zzpl.backstep, _mode+1, bar);
-    zzResultLong.pair.low = iCustom(NULL,period,"ZigZag",zzpl.depth, zzpl.deviation, zzpl.backstep, _mode+2, bar);
-    if(zzResultLong.last != 0) {
-      zzPointLong.values[pointIndex] = zzResultLong.last;
-      zzPointLong.barIds[pointIndex] = bar;
-      pointIndex++;
-      if(pointIndex >= ArraySize(zzPointLong.values)) {
-        break;
-      }
-    }
-  }
-  // printf("Long [0](%d:%f) [1](%d:%f)", 
-  //   zzPointLong.barIds[0], zzPointLong.values[0],
-  //   zzPointLong.barIds[1], zzPointLong.values[1]);
-  //Short
-  pointIndex = 0;
-  for(bar = 0; bar < Bars; bar++) {
-    ZZ_result zzResultShort = {0,{0,0}};
-    zzResultShort.last = iCustom(NULL,period,"ZigZag",zzps.depth, zzps.deviation, zzps.backstep, _mode+0, bar);
-    zzResultShort.pair.high = iCustom(NULL,period,"ZigZag",zzps.depth, zzps.deviation, zzps.backstep, _mode+1, bar);
-    zzResultShort.pair.low = iCustom(NULL,period,"ZigZag",zzps.depth, zzps.deviation, zzps.backstep, _mode+2, bar);
-    if(zzResultShort.last != 0) {
-      zzPointShort.values[pointIndex] = zzResultShort.last;
-      zzPointShort.barIds[pointIndex] = bar;
-      pointIndex++;
-      if(pointIndex >= ArraySize(zzPointShort.values)) {
-        break;
-      }
-    }
-  }
+  // //ZigZag
+  // ZZ_param zzpl = { 15, 5, 3};
+  // ZZ_param zzps = { 5, 5, 3};
+  // int _mode = 0;
+  // //転換点を取得
+  // int bar = 0;
+  // int pointIndex = 0;
+  // //Long
+  // pointIndex = 0;
+  // for(bar = 0; bar < Bars; bar++) {
+  //   ZZ_result zzResultLong = {0,{0,0}};
+  //   zzResultLong.last = iCustom(NULL,period,"ZigZag",zzpl.depth, zzpl.deviation, zzpl.backstep, _mode+0, bar);
+  //   zzResultLong.pair.high = iCustom(NULL,period,"ZigZag",zzpl.depth, zzpl.deviation, zzpl.backstep, _mode+1, bar);
+  //   zzResultLong.pair.low = iCustom(NULL,period,"ZigZag",zzpl.depth, zzpl.deviation, zzpl.backstep, _mode+2, bar);
+  //   if(zzResultLong.last != 0) {
+  //     zzPointLong.values[pointIndex] = zzResultLong.last;
+  //     zzPointLong.barIds[pointIndex] = bar;
+  //     pointIndex++;
+  //     if(pointIndex >= ArraySize(zzPointLong.values)) {
+  //       break;
+  //     }
+  //   }
+  // }
+  // // printf("Long [0](%d:%f) [1](%d:%f)", 
+  // //   zzPointLong.barIds[0], zzPointLong.values[0],
+  // //   zzPointLong.barIds[1], zzPointLong.values[1]);
+  // //Short
+  // pointIndex = 0;
+  // for(bar = 0; bar < Bars; bar++) {
+  //   ZZ_result zzResultShort = {0,{0,0}};
+  //   zzResultShort.last = iCustom(NULL,period,"ZigZag",zzps.depth, zzps.deviation, zzps.backstep, _mode+0, bar);
+  //   zzResultShort.pair.high = iCustom(NULL,period,"ZigZag",zzps.depth, zzps.deviation, zzps.backstep, _mode+1, bar);
+  //   zzResultShort.pair.low = iCustom(NULL,period,"ZigZag",zzps.depth, zzps.deviation, zzps.backstep, _mode+2, bar);
+  //   if(zzResultShort.last != 0) {
+  //     zzPointShort.values[pointIndex] = zzResultShort.last;
+  //     zzPointShort.barIds[pointIndex] = bar;
+  //     pointIndex++;
+  //     if(pointIndex >= ArraySize(zzPointShort.values)) {
+  //       break;
+  //     }
+  //   }
+  // }
 
   //エントリーチェック
   // printf("Short [0](%d:%f) [1](%d:%f)", 
   //   zzPointShort.barIds[0], zzPointShort.values[0],
   //   zzPointShort.barIds[1], zzPointShort.values[1]);
-  //転換点が重なっているか
-  // かつ　転換点が高値安値範囲か
-  bool _isZZOverlap = false;
-  if((zzPointLong.values[0] == zzPointShort.values[0]) &&
-     (zzPointLong.barIds[0] == 1) &&
-     (zzPointShort.barIds[0] == 1))
-  {
-    double _targetValue = zzPointLong.values[0];
-    if(_targetValue >= Low[1] && _targetValue <= High[1]) {
-      _isZZOverlap = true;
-    }
-    // printf("Long [0](%d:%f) [1](%d:%f)", 
-    //   zzPointLong.barIds[0], zzPointLong.values[0],
-    //   zzPointLong.barIds[1], zzPointLong.values[1]);
-    // printf("Short [0](%d:%f) [1](%d:%f)", 
-    //   zzPointShort.barIds[0], zzPointShort.values[0],
-    //   zzPointShort.barIds[1], zzPointShort.values[1]);
-  }
-
-  // //RSI
-  // bool _isOkRsi = false;
-  // if((_rsi <= rsiLimitLower) || (_rsi >= rsiLimitUpper))
+  // //転換点が重なっているか
+  // // かつ　転換点が高値安値範囲か
+  // bool _isZZOverlap = false;
+  // if((zzPointLong.values[0] == zzPointShort.values[0]) &&
+  //    (zzPointLong.barIds[0] == 1) &&
+  //    (zzPointShort.barIds[0] == 1))
   // {
-  //   _isOkRsi = true;
+  //   double _targetValue = zzPointLong.values[0];
+  //   if(_targetValue >= Low[1] && _targetValue <= High[1]) {
+  //     _isZZOverlap = true;
+  //   }
+  //   // printf("Long [0](%d:%f) [1](%d:%f)", 
+  //   //   zzPointLong.barIds[0], zzPointLong.values[0],
+  //   //   zzPointLong.barIds[1], zzPointLong.values[1]);
+  //   // printf("Short [0](%d:%f) [1](%d:%f)", 
+  //   //   zzPointShort.barIds[0], zzPointShort.values[0],
+  //   //   zzPointShort.barIds[1], zzPointShort.values[1]);
   // }
 
+  //RSI
+  bool _isOkRsi = false;
+  if((_rsi <= rsiLimitLower) || (_rsi >= rsiLimitUpper))
+  {
+    _isOkRsi = true;
+  }
+
   //タッチ条件
-  //HighLowの1~4までが1つ前のバーのOpenClose範囲に入っていればタッチとする
+  //HighLowの1~4までが今のバーのOpenClose範囲に入っていればタッチとする
   bool _isTouch = false;
-  double _prevLow = Low[1];
-  double _prevHigh = High[1];
+  double _prevLow = Low[0];
+  double _prevHigh = High[0];
   for(i = 1; i < ArraySize(hllResults); i++) {
     double _target = 0;
     _target = hllResults[i].low;
@@ -219,19 +217,19 @@ void OnTick()
   //   );
   // }
 
-  //ヒゲチェック
-  bool _isShadow = false;
-  int _shadowResult = getUpperLowerShadow(1);
-  if(_shadowResult != 0) {
-    _isShadow = true;
-    // printf("isShadow TRUE result:%d", _shadowResult);
-  }
+  // //ヒゲチェック
+  // bool _isShadow = false;
+  // int _shadowResult = getUpperLowerShadow(1);
+  // if(_shadowResult != 0) {
+  //   _isShadow = true;
+  //   // printf("isShadow TRUE result:%d", _shadowResult);
+  // }
 
   //エントリーまとめ
   bool _isEntry = false;
   // printf("_isOkRsi:%d _isTouch:%d _isShadow:%d", 
   //   _isOkRsi, _isTouch, _isShadow);
-  if(_isTouch && _isShadow && _isZZOverlap)
+  if(_isTouch && _isOkRsi)
   {
     _isEntry = true;
   }
@@ -240,12 +238,12 @@ void OnTick()
   if(ticket == -1) {
     //Order Open
     // エントリーフラグが立っていたら処理する
-    if((Volume[0]<=1) && _isEntry) {
+    if(_isEntry) {
       int _cmd = OP_SELL;
-      if(zzPointLong.values[0] < zzPointLong.values[1]) {
+      if(_rsi <= rsiLimitLower) {
         _cmd = OP_BUY;
       }
-      else if(zzPointLong.values[0] > zzPointLong.values[1]) {
+      else if(_rsi >= rsiLimitUpper) {
         _cmd = OP_SELL;
       }
       ticket = SendOrder(_cmd);
@@ -256,7 +254,8 @@ void OnTick()
     }
   } else {
     //Order Close
-    if(Volume[0]<=1) {
+    // if(Volume[0]<=1) 
+    {
       bool _result = CloseOrder(ticket);
       if(_result) {
         ticket = -1;
@@ -267,46 +266,46 @@ void OnTick()
 }
 //+------------------------------------------------------------------+
 
-// UpperLowerShadow
-// return 0= どちらでもない, -1=Lower 1=Upper
-int getUpperLowerShadow(int aBar) {
-  if(aBar <= 0) {
-    return 0;
-  }
+// // UpperLowerShadow
+// // return 0= どちらでもない, -1=Lower 1=Upper
+// int getUpperLowerShadow(int aBar) {
+//   if(aBar <= 0) {
+//     return 0;
+//   }
 
-  //実体の計算
-  double Real_Body = MathAbs(Open[aBar] - Close[aBar]);
-  //上ヒゲの計算
-  double Upper_Shadow = MathMin(High[aBar] - Open[aBar], High[aBar] - Close[aBar]);
-  //下ヒゲの計算
-  double Lower_Shadow = MathMin(Open[aBar] - Low[aBar], Close[aBar] - Low[aBar]);
-  // printf("Real_Body:%f",Real_Body);
-  // printf("Upper_Shadow:%f",Upper_Shadow);
-  // printf("Lower_Shadow:%f",Lower_Shadow);
-  //実体 < ヒゲ
-  if((Real_Body < Upper_Shadow) || (Real_Body < Lower_Shadow)) {
-    if(Real_Body * UpperLowerShadowMagnificationLargeShadow <= Lower_Shadow &&
-    Upper_Shadow * UpperLowerShadowMagnificationLargeShadow <= Lower_Shadow) {
-      return -1;
-    }
-    if(Real_Body * UpperLowerShadowMagnificationLargeShadow <= Upper_Shadow && 
-    Lower_Shadow * UpperLowerShadowMagnificationLargeShadow <= Upper_Shadow) {
-      return 1;
-    }
-  } else {
-  //実体　>= ヒゲ
-    if(Real_Body * UpperLowerShadowMagnificationSmallShadow <= Lower_Shadow &&
-    Upper_Shadow * UpperLowerShadowMagnificationSmallShadow <= Lower_Shadow) {
-      return -1;
-    }
-    if(Real_Body * UpperLowerShadowMagnificationSmallShadow <= Upper_Shadow && 
-    Lower_Shadow * UpperLowerShadowMagnificationSmallShadow <= Upper_Shadow) {
-      return 1;
-    }
-  }
+//   //実体の計算
+//   double Real_Body = MathAbs(Open[aBar] - Close[aBar]);
+//   //上ヒゲの計算
+//   double Upper_Shadow = MathMin(High[aBar] - Open[aBar], High[aBar] - Close[aBar]);
+//   //下ヒゲの計算
+//   double Lower_Shadow = MathMin(Open[aBar] - Low[aBar], Close[aBar] - Low[aBar]);
+//   // printf("Real_Body:%f",Real_Body);
+//   // printf("Upper_Shadow:%f",Upper_Shadow);
+//   // printf("Lower_Shadow:%f",Lower_Shadow);
+//   //実体 < ヒゲ
+//   if((Real_Body < Upper_Shadow) || (Real_Body < Lower_Shadow)) {
+//     if(Real_Body * UpperLowerShadowMagnificationLargeShadow <= Lower_Shadow &&
+//     Upper_Shadow * UpperLowerShadowMagnificationLargeShadow <= Lower_Shadow) {
+//       return -1;
+//     }
+//     if(Real_Body * UpperLowerShadowMagnificationLargeShadow <= Upper_Shadow && 
+//     Lower_Shadow * UpperLowerShadowMagnificationLargeShadow <= Upper_Shadow) {
+//       return 1;
+//     }
+//   } else {
+//   //実体　>= ヒゲ
+//     if(Real_Body * UpperLowerShadowMagnificationSmallShadow <= Lower_Shadow &&
+//     Upper_Shadow * UpperLowerShadowMagnificationSmallShadow <= Lower_Shadow) {
+//       return -1;
+//     }
+//     if(Real_Body * UpperLowerShadowMagnificationSmallShadow <= Upper_Shadow && 
+//     Lower_Shadow * UpperLowerShadowMagnificationSmallShadow <= Upper_Shadow) {
+//       return 1;
+//     }
+//   }
 
-  return 0;
-}
+//   return 0;
+// }
 
 //HighLowLine
 //日付更新
