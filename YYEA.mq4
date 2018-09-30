@@ -15,7 +15,7 @@ struct HighLowPair {
 };
 
 //RSI
-int rsiPesiod = 14;
+int rsiPesiod = 9;
 double rsiLimitUpper = 70;
 double rsiLimitLower = 30;
 int rsiPreiodType = PERIOD_M5;
@@ -57,7 +57,7 @@ HighLowPair hllResults[HIGH_LOW_LINES_DAYS];
 #define MAGICMA 20180826
 int ticket = -1;
 double closePrise = 0;
-int closeTimeOffset = 15*60;//間隔 秒
+int closeTimeOffset = 5*60;//間隔 秒
 datetime openedTime = D'1970.01.01 00:01:02';
 int orderArrowIndex = 0;
 string orderArrowObjNameBase = "orderArrow";
@@ -103,9 +103,6 @@ void OnTick()
   //     hllResults[2].high,hllResults[2].low,
   //     hllResults[3].high,hllResults[3].low
   // );
-
-  //RSI
-  double _rsi = iCustom(NULL,rsiPreiodType,"RSI",rsiPesiod,0,1);
 
   // //ZigZag
   // ZZ_param zzpl = { 15, 5, 3};
@@ -174,6 +171,7 @@ void OnTick()
   // }
 
   //RSI
+  double _rsi = iCustom(NULL,rsiPreiodType,"RSI",rsiPesiod,0,1);
   bool _isOkRsi = false;
   if((_rsi <= rsiLimitLower) || (_rsi >= rsiLimitUpper))
   {
