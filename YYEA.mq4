@@ -53,6 +53,10 @@ HighLowPair hllResults[HIGH_LOW_LINES_DAYS];
 // ZZ_point zzPointLong;
 // ZZ_point zzPointShort;
 
+//RSI Separate
+
+
+
 //Order
 #define MAGICMA 20180826
 int ticket = -1;
@@ -225,11 +229,17 @@ void OnTick()
   //   // printf("isShadow TRUE result:%d", _shadowResult);
   // }
 
+  //RSI Separate
+  double _rsiSepShort = iRSI(NULL,PERIOD_CURRENT,9,PRICE_CLOSE,1);
+  double _rsiSepLong = iRSI(NULL,PERIOD_CURRENT,50,PRICE_CLOSE,1);
+  double _rsiSep = _rsiSepLong - _rsiSepShort;
+  bool _isEntryRsiSep = (MathAbs(_rsiSep) > 20);
+
   //エントリーまとめ
   bool _isEntry = false;
   // printf("_isOkRsi:%d _isTouch:%d _isShadow:%d", 
   //   _isOkRsi, _isTouch, _isShadow);
-  if(_isTouch && _isOkRsi)
+  if(_isTouch && _isEntryRsiSep)
   {
     _isEntry = true;
   }
@@ -240,10 +250,10 @@ void OnTick()
     // エントリーフラグが立っていたら処理する
     if(_isEntry) {
       int _cmd = OP_SELL;
-      if(_rsi <= rsiLimitLower) {
+      if(_rsiSep > 0) {
         _cmd = OP_BUY;
       }
-      else if(_rsi >= rsiLimitUpper) {
+      else if(_rsiSep < 0) {
         _cmd = OP_SELL;
       }
       ticket = SendOrder(_cmd);
