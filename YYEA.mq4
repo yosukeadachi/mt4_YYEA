@@ -15,7 +15,7 @@ struct HighLowPair {
 };
 
 //RSI
-int rsiPesiod = 9;
+int rsiPesiod = 14;
 double rsiLimitUpper = 70;
 double rsiLimitLower = 30;
 int rsiPreiodType = PERIOD_M5;
@@ -53,15 +53,16 @@ HighLowPair hllResults[HIGH_LOW_LINES_DAYS];
 // ZZ_point zzPointLong;
 // ZZ_point zzPointShort;
 
-//RSI Separate
-
-
+//MA乖離
+int MA_Period=21;
+int MA_Method=1;
+double MAKairiLimit = 0.02;
 
 //Order
 #define MAGICMA 20180826
 int ticket = -1;
 double closePrise = 0;
-int closeTimeOffset = 5*60;//間隔 秒
+int closeTimeOffset = 15*60;//間隔 秒
 datetime openedTime = D'1970.01.01 00:01:02';
 int orderArrowIndex = 0;
 string orderArrowObjNameBase = "orderArrow";
@@ -94,19 +95,8 @@ void OnTick()
 
   int i = 0;
 
-  //HighLowLines
-  UpdateHighLowLinesAll(hllBuffers);
-  for(i = 0; i < ArraySize(hllResults); i++) {
-    hllResults[i].high = hllBuffers[i].highest;
-    hllResults[i].low = hllBuffers[i].lowest;
-  }
-  // printf("%s highlow:0[H%.3f:L%.3f],1[H%.3f:L%.3f],2[H%.3f:L%.3f],3[H%.3f:L%.3f]", 
-  //     generateTickTimeStr(),
-  //     hllResults[0].high,hllResults[0].low,
-  //     hllResults[1].high,hllResults[1].low,
-  //     hllResults[2].high,hllResults[2].low,
-  //     hllResults[3].high,hllResults[3].low
-  // );
+  //------
+  //個別エントリー条件
 
   // //ZigZag
   // ZZ_param zzpl = { 15, 5, 3};
@@ -151,7 +141,7 @@ void OnTick()
   //   }
   // }
 
-  //エントリーチェック
+  //zzエントリーチェック
   // printf("Short [0](%d:%f) [1](%d:%f)", 
   //   zzPointShort.barIds[0], zzPointShort.values[0],
   //   zzPointShort.barIds[1], zzPointShort.values[1]);
@@ -183,6 +173,12 @@ void OnTick()
   }
 
   //タッチ条件
+  //HighLowLines
+  UpdateHighLowLinesAll(hllBuffers);
+  for(i = 0; i < ArraySize(hllResults); i++) {
+    hllResults[i].high = hllBuffers[i].highest;
+    hllResults[i].low = hllBuffers[i].lowest;
+  }
   //HighLowの1~4までが今のバーのOpenClose範囲に入っていればタッチとする
   bool _isTouch = false;
   double _prevLow = Low[0];
@@ -203,22 +199,6 @@ void OnTick()
     }
   }
 
-  // if(_isTouch) {
-  //   printf("0:%s 1:%s 2:%s 3:%s",
-  //     TimeToStr(hllBuffers[0].date, TIME_DATE),
-  //     TimeToStr(hllBuffers[1].date, TIME_DATE),
-  //     TimeToStr(hllBuffers[2].date, TIME_DATE),
-  //     TimeToStr(hllBuffers[3].date, TIME_DATE)
-  //   );
-  //   printf("%s highlow:0[H%.3f:L%.3f],1[H%.3f:L%.3f],2[H%.3f:L%.3f],3[H%.3f:L%.3f]", 
-  //     generateTickTimeStr(),
-  //     hllResults[0].high,hllResults[0].low,
-  //     hllResults[1].high,hllResults[1].low,
-  //     hllResults[2].high,hllResults[2].low,
-  //     hllResults[3].high,hllResults[3].low
-  //   );
-  // }
-
   // //ヒゲチェック
   // bool _isShadow = false;
   // int _shadowResult = getUpperLowerShadow(1);
@@ -227,31 +207,32 @@ void OnTick()
   //   // printf("isShadow TRUE result:%d", _shadowResult);
   // }
 
-  //RSI Separate
-  double _rsiSepShort = iRSI(NULL,PERIOD_CURRENT,9,PRICE_CLOSE,1);
-  double _rsiSepLong = iRSI(NULL,PERIOD_CURRENT,50,PRICE_CLOSE,1);
-  double _rsiSep = _rsiSepLong - _rsiSepShort;
-  bool _isEntryRsiSep = (MathAbs(_rsiSep) > 20);
+  //EMA乖離
+  double _ma = iMA(NULL,PERIOD_CURRENT,MA_Period,0,MA_Method,PRICE_CLOSE,1);
+  double _maKairi = (Close[1]-_ma)/_ma*100;
+  bool _isEntryMAKairi = (MathAbs(_maKairi) > MAKairiLimit);
 
+  //------
   //エントリーまとめ
   bool _isEntry = false;
   // printf("_isOkRsi:%d _isTouch:%d _isShadow:%d", 
   //   _isOkRsi, _isTouch, _isShadow);
-  if(_isTouch && _isEntryRsiSep)
+  if(_isEntryMAKairi && _isOkRsi)
   {
     _isEntry = true;
   }
 
+  //------
   //エントリー処理
   if(ticket == -1) {
     //Order Open
     // エントリーフラグが立っていたら処理する
     if(_isEntry) {
       int _cmd = OP_SELL;
-      if(_rsiSep > 0) {
+      if(_maKairi < 0) {
         _cmd = OP_BUY;
       }
-      else if(_rsiSep < 0) {
+      else if(_maKairi > 0) {
         _cmd = OP_SELL;
       }
       ticket = SendOrder(_cmd);
