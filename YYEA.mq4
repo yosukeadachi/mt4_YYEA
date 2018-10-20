@@ -62,7 +62,8 @@ double MAKairiLimit = 0.02;
 #define MAGICMA 20180826
 int ticket = -1;
 double closePrise = 0;
-int closeTimeOffset = 15*60;//間隔 秒
+extern int closeTimeMinute = 15;
+int closeTimeOffset = closeTimeMinute*60;//間隔 秒
 datetime openedTime = D'1970.01.01 00:01:02';
 int orderArrowIndex = 0;
 string orderArrowObjNameBase = "orderArrow";
